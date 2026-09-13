@@ -13,7 +13,7 @@ export function createTimeEncoding(timeMin, timeMax) {
     timeScale,
     timeColor: (hour) => palette[Math.round(THREE.MathUtils.clamp(
       (hour - timeMin) / (timeMax - timeMin) * 256, 0, 256))],
-    timeY: (hour) => 0.4 + (hour - timeMin) * 0.66,
+    timeY: (hour) => 0.4 + (hour - timeMin) / (timeMax - timeMin) * 5.28,
   };
 }
 
@@ -26,7 +26,7 @@ export function createTerrain({ NX, NZ, vertices, timeMin, timeMax }, { timeY, t
     for (let ix = 0; ix < NX; ix++) {
       const a = iz * (NX + 1) + ix, b = a + 1, c = a + NX + 1, d = c + 1;
       for (const face of [[a, c, b], [b, c, d]]) {
-        if (face.every((i) => vertices[i].region === vertices[face[0]].region))
+        if (vertices[face[0]].region !== null && face.every((i) => vertices[i].region === vertices[face[0]].region))
           triangles.push(...face);
       }
     }
@@ -73,7 +73,7 @@ export function createTerrain({ NX, NZ, vertices, timeMin, timeMax }, { timeY, t
   // Fine traces expose curvature during orbit; never connect independent areas.
   const traceSources = [];
   function addTrace(a, b) {
-    if (vertices[a].region === vertices[b].region)
+    if (vertices[a].region !== null && vertices[a].region === vertices[b].region)
       traceSources.push([a, "median"], [b, "median"]);
   }
   for (let iz = 0; iz <= NZ; iz += 6)

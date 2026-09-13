@@ -14,10 +14,19 @@
       <div id="delivery-probability-terrain">
         <div class="terrain-head">
           <h1>Delivery probability terrain</h1>
-          <span class="text-small text-muted"
+          <span id="terrain-subtitle" class="text-small text-muted"
             >Oakland streets · 3 textured, independent 9–5 areas</span
           >
         </div>
+        <div class="dataset-toolbar">
+          <button type="button" class="btn" id="recording-load">Load recorded day</button>
+          <input type="file" id="recording-file" accept=".json,application/json" hidden />
+          <button type="button" class="btn btn-ghost" id="recording-export">Export example</button>
+          <button type="button" class="btn btn-ghost" id="recording-demo" hidden>Return to demo</button>
+          <a id="recording-guide" class="text-small" target="_blank" rel="noopener noreferrer">Format guide</a>
+          <span class="text-small text-muted">Files stay in your browser</span>
+        </div>
+        <p id="recording-status" class="text-small" role="status"></p>
         <div class="evidence-head">
           <label for="terrain-evidence" class="form-label"
             >Replay time:
@@ -46,17 +55,18 @@
               type="range"
               min="540"
               max="1020"
-              step="1"
+              step="any"
               value="540"
               aria-label="Replay time, move forward or backward through delivery observations"
             />
             <div id="terrain-events" class="event-ticks" aria-hidden="true"></div>
             <div class="replay-endpoints text-small text-muted tabular-nums">
-              <span id="terrain-start">9 AM</span><span>1 PM</span><span id="terrain-end">5 PM</span>
+              <span id="terrain-start">9 AM</span><span id="terrain-mid">1 PM</span><span id="terrain-end">5 PM</span>
             </div>
           </div>
         </div>
         <div class="terrain-view" id="terrain-view">
+          <p id="graphics-notice" class="graphics-notice" hidden>This browser cannot display the 3D map. Use a browser with WebGL 2 enabled. Replay and location inspection remain available below.</p>
           <canvas
             id="terrain-canvas"
             role="img"
@@ -74,7 +84,7 @@
         </div>
         <div class="terrain-footer">
           <span class="text-small text-muted"
-            >Drag to orbit · Pinch or scroll to zoom</span
+            >Click a location to inspect · Drag to orbit · Pinch or scroll to zoom</span
           >
           <div class="viz-row">
             <button type="button" class="btn btn-ghost" id="terrain-rotate">
@@ -102,7 +112,7 @@
           </div>
         </div>
         <div class="time-legend text-small" aria-label="Delivery time: blue at 9 AM, purple at 1 PM, red at 5 PM">
-          <span>Earlier · 9 AM</span><span class="time-gradient" aria-hidden="true"></span><span>5 PM · Later</span>
+          <span id="legend-early">Earlier · 9 AM</span><span class="time-gradient" aria-hidden="true"></span><span id="legend-late">5 PM · Later</span>
         </div>
         <div class="terrain-key text-small">
           <span>Height + color = delivery time</span>
@@ -111,15 +121,38 @@
           <span><span class="legend-dot" aria-hidden="true"></span>Observed delivery</span>
         </div>
         <div id="terrain-regions" class="terrain-regions" aria-label="Uncertainty by region"></div>
+        <section class="location-inspector" aria-label="Inspect a location">
+          <div class="location-picker">
+            <h2>Inspect a location</h2>
+            <div class="location-filters">
+              <label class="text-small">Service area<select id="site-area"></select></label>
+              <label class="text-small" hidden>ZIP<select id="site-zip"></select></label>
+            </div>
+            <label for="site-search" class="text-small">Search location or address</label>
+            <input id="site-search" type="search" placeholder="Name, address, or site ID" autocomplete="off" />
+            <label for="site-select" class="sr-only">Choose a location</label>
+            <select id="site-select"></select>
+            <span id="site-count" class="text-small text-muted"></span>
+            <p class="text-small text-muted">Select on the map or choose a location here. The demo uses building names; imported days can use address labels.</p>
+          </div>
+          <div class="location-detail">
+            <h2 id="site-title">Select a location</h2>
+            <p id="site-meta" class="text-small text-muted"></p>
+            <div class="location-stats">
+              <div><span id="site-median-label" class="text-small text-muted">Median forecast</span><strong id="site-median" class="tabular-nums">—</strong></div>
+              <div><span class="text-small text-muted">Central 80% window</span><strong id="site-window" class="tabular-nums">—</strong></div>
+              <span id="site-change" class="text-small"></span>
+            </div>
+            <svg id="site-distribution" viewBox="0 0 580 182" role="img" aria-label="Delivery time distribution"></svg>
+            <p id="site-chart-note" class="text-small text-muted"></p>
+            <p id="site-evidence" class="text-small"></p>
+            <details class="text-small text-muted"><summary>Forecast details</summary><p id="site-forecast"></p></details>
+          </div>
+        </section>
         <div class="terrain-source text-small text-muted">
-          Map data ©
-          <a
-            href="https://www.openstreetmap.org/copyright"
-            target="_blank"
-            rel="noopener noreferrer"
-            >OpenStreetMap contributors</a
-          >
-          · Downtown detail · Synthetic deliveries; no routes assumed · 5 PM resolves to final delivery times
+          <span id="map-attribution">Map data © OpenStreetMap contributors</span>
+          <a id="osm-attribution-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Map license</a>
+          · <span id="data-kind">Synthetic deliveries; no routes assumed</span>
         </div>
       </div>
     </main>

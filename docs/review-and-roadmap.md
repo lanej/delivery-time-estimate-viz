@@ -2,6 +2,8 @@
 
 Reviewed against `cd0d342e3f2b9e1efbc338e1e7b952494cac865a` on 2026-09-13.
 
+**Implementation update:** The first expansion now supports validated recorded-day import/export, configurable map extents/service areas/windows/timezones, and map selection plus searchable location inspection. The inspector compares current/previous quantiles, displays supplied density samples (including multiple peaks), and keeps delivery evidence separate from forecast availability. The synthetic Oakland day uses the same import contract. See [format v1](recording-format.md). A real shipment dataset, live feeds, revision handling, calibration dashboards, and polygon-conforming meshes remain future work. The review below describes the preceding code state.
+
 ## Review outcome
 
 The core behavior is sound for an illustrative replay: spatial conditioning is independent between areas, the 9–5 time scale stays fixed, rewind selects earlier evidence, and completion preserves the textured surface while removing the range. The map and synthetic outcomes remain distinct. No route is supplied or inferred.

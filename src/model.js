@@ -96,15 +96,15 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     return { L, residuals };
   }
   const { L, residuals } = fit();
-  const predictions = Array.from({ length: scans.length + 1 }, () => []);
   function interval(mean, variance) {
     const radius = QUANTILE_80 * Math.sqrt(Math.max(variance, 1e-12));
     return { median: toHour(mean), lower: toHour(mean - radius), upper: toHour(mean + radius) };
   }
-  vertices.forEach((p) => {
+  function predict(p) {
+    const values = [];
     let mean = p.mean, variance = kernel(p, p) + p.noise ** 2;
     const weights = [];
-    predictions[0].push(interval(mean, variance));
+    values.push(interval(mean, variance));
     scans.forEach((obs, i) => {
       let weight = kernel(p, obs);
       for (let j = 0; j < i; j++) weight -= L[i][j] * weights[j];
@@ -112,15 +112,18 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
       weights.push(weight);
       mean += weight * residuals[i];
       variance -= weight ** 2;
-      predictions[i + 1].push(interval(mean, variance));
+      values.push(interval(mean, variance));
     });
+    return values;
+  }
+  const predictions = Array.from({ length: scans.length + 1 }, () => []);
+  vertices.forEach((p) => {
+    predict(p).forEach((value, i) => predictions[i].push(value));
   });
   // A separate, fully observed synthetic outcome snapshot becomes available at
   // 5 PM. Sparse daytime scans alone must not imply certainty at unseen locations.
   const exact = fit(true);
-  const completion = {
-    minutes: DAY_END * 60,
-    values: vertices.map((p) => {
+  function outcome(p) {
       let mean = p.mean;
       const weights = [];
       scans.forEach((obs, i) => {
@@ -132,9 +135,16 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
       });
       const time = toHour(mean);
       return { median: time, lower: time, upper: time };
-    }),
+  }
+  const completion = {
+    minutes: DAY_END * 60,
+    values: vertices.map(outcome),
   };
-  return { NX, NZ, vertices, predictions, scans, regions, completion, timeMin: DAY_START, timeMax: DAY_END };
+  const inspect = ({ x, z }) => {
+    const p = field(x, z);
+    return { region: p.region, predictions: predict(p), outcome: outcome(p) };
+  };
+  return { NX, NZ, vertices, predictions, scans, regions, completion, inspect, timeMin: DAY_START, timeMax: DAY_END };
 }
 
 /** Availability is separate from delivery time; the demo makes them coincide. */

@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "id": "recorded-fixture",
+  "label": "Recorded replay fixture",
+  "synthetic": false,
+  "timeZone": "America/Los_Angeles",
+  "timeDomain": [
+    "2026-09-13T16:00:00.000Z",
+    "2026-09-14T00:00:00.000Z"
+  ],
+  "replay": [
+    "2026-09-13T16:00:00.000Z",
+    "2026-09-14T00:00:00.000Z"
+  ],
+  "bounds": [
+    -122.2763,
+    37.8011,
+    -122.2622,
+    37.8104
+  ],
+  "map": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "mapAttribution": "Test fixture; no street geometry",
+  "areas": [
+    {
+      "id": "west",
+      "name": "west",
+      "serviceWindow": [
+        "2026-09-13T16:00:00.000Z",
+        "2026-09-14T00:00:00.000Z"
+      ]
+    },
+    {
+      "id": "central",
+      "name": "central",
+      "serviceWindow": [
+        "2026-09-13T16:00:00.000Z",
+        "2026-09-14T00:00:00.000Z"
+      ]
+    },
+    {
+      "id": "east",
+      "name": "east",
+      "serviceWindow": [
+        "2026-09-13T16:00:00.000Z",
+        "2026-09-14T00:00:00.000Z"
+      ]
+    }
+  ],
+  "grid": {
+    "columns": 6,
+    "rows": 2,
+    "points": [
+      {
+        "coordinates": [
+          -122.2745,
+          37.8045
+        ],
+        "areaId": "west"
+      },
+      {
+        "coordinates": [
+          -122.27300000000001,
+          37.8045
+        ],
+        "areaId": "west"
+      },
+      {
+        "coordinates": [
+          -122.2715,
+          37.8045
+        ],
+        "areaId": "central"
+      },
+      {
+        "coordinates": [
+          -122.27000000000001,
+          37.8045
+        ],
+        "areaId": "central"
+      },
+      {
+        "coordinates": [
+          -122.2685,
+          37.8045
+        ],
+        "areaId": "east"
+      },
+      {
+        "coordinates": [
+          -122.26700000000001,
+          37.8045
+        ],
+        "areaId": "east"
+      },
+      {
+        "coordinates": [
+          -122.2745,
+          37.8065
+        ],
+        "areaId": "west"
+      },
+      {
+        "coordinates": [
+          -122.27300000000001,
+          37.8065
+        ],
+        "areaId": "west"
+      },
+      {
+        "coordinates": [
+          -122.2715,
+          37.8065
+        ],
+        "areaId": "central"
+      },
+      {
+        "coordinates": [
+          -122.27000000000001,
+          37.8065
+        ],
+        "areaId": "central"
+      },
+      {
+        "coordinates": [
+          -122.2685,
+          37.8065
+        ],
+        "areaId": "east"
+      },
+      {
+        "coordinates": [
+          -122.26700000000001,
+          37.8065
+        ],
+        "areaId": "east"
+      }
+    ]
+  },
+  "sites": [
+    {
+      "id": "west",
+      "label": "Address 1",
+      "coordinates": [
+        -122.27375,
+        37.8055
+      ],
+      "areaId": "west",
+      "zip": "94612"
+    },
+    {
+      "id": "central",
+      "label": "Address 2",
+      "coordinates": [
+        -122.27075,
+        37.8055
+      ],
+      "areaId": "central",
+      "zip": "94612"
+    },
+    {
+      "id": "east",
+      "label": "Address 3",
+      "coordinates": [
+        -122.26775,
+        37.8055
+      ],
+      "areaId": "east",
+      "zip": "94612"
+    }
+  ],
+  "observations": [
+    {
+      "id": "west-delivery",
+      "siteId": "west",
+      "eventAt": "2026-09-13T17:00:00.000Z",
+      "availableAt": "2026-09-13T17:05:00.000Z"
+    },
+    {
+      "id": "late-east-scan",
+      "siteId": "east",
+      "eventAt": "2026-09-13T23:45:00.000Z",
+      "availableAt": "2026-09-14T00:30:00.000Z"
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "initial",
+      "asOf": "2026-09-13T16:00:00.000Z",
+      "availableAt": "2026-09-13T16:00:00.000Z",
+      "modelVersion": "fixture-v1",
+      "evidenceIds": [],
+      "gridValues": [
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ]
+      ],
+      "siteValues": {
+        "west": [
+          30,
+          90,
+          180
+        ],
+        "central": [
+          100,
+          200,
+          400
+        ],
+        "east": null
+      }
+    },
+    {
+      "id": "updated",
+      "asOf": "2026-09-13T17:05:00.000Z",
+      "availableAt": "2026-09-13T17:15:00.000Z",
+      "modelVersion": "fixture-v1",
+      "evidenceIds": [
+        "west-delivery"
+      ],
+      "gridValues": [
+        [
+          50,
+          60,
+          90
+        ],
+        [
+          50,
+          60,
+          90
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          50,
+          60,
+          90
+        ],
+        [
+          50,
+          60,
+          90
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ],
+        [
+          0,
+          240,
+          480
+        ]
+      ],
+      "siteValues": {
+        "west": [
+          50,
+          60,
+          90
+        ],
+        "central": [
+          100,
+          200,
+          400
+        ],
+        "east": null
+      },
+      "distributions": {
+        "central": [
+          [
+            0,
+            0
+          ],
+          [
+            60,
+            1
+          ],
+          [
+            120,
+            0.1
+          ],
+          [
+            300,
+            1
+          ],
+          [
+            480,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}
