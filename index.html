@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interactive 3D replay of delivery-time probabilities over a street map."
+    />
+    <title>Delivery probability terrain</title>
+  </head>
+  <body>
+    <main>
+      <div id="delivery-probability-terrain">
+        <div class="terrain-head">
+          <h1>Delivery probability terrain</h1>
+          <span class="text-small text-muted"
+            >Oakland streets · illustrative field</span
+          >
+        </div>
+        <div class="evidence-head">
+          <label for="terrain-evidence" class="form-label"
+            >Replay time:
+            <span id="terrain-clock" class="tabular-nums"
+              >Before observations</span
+            ></label
+          >
+          <span id="terrain-state" class="text-small" aria-live="polite"
+            >Prior distribution</span
+          >
+        </div>
+        <div class="replay-controls">
+          <button
+            type="button"
+            class="btn"
+            id="terrain-play"
+            aria-label="Play delivery observations over time"
+          >
+            Play
+          </button>
+          <div class="replay-range">
+            <input
+              id="terrain-evidence"
+              class="form-range"
+              type="range"
+              min="0"
+              max="120"
+              step="1"
+              value="0"
+              aria-label="Replay time, move forward or backward through delivery observations"
+            />
+            <div class="replay-endpoints text-small text-muted tabular-nums">
+              <span id="terrain-start"></span><span id="terrain-end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="terrain-view" id="terrain-view">
+          <canvas
+            id="terrain-canvas"
+            role="img"
+            aria-label="Interactive three-dimensional probability terrain over an Oakland street map. Rotate or tilt to see dense delivery-time surfaces and the central 80 percent uncertainty band. Play or scrub the replay clock: observations affect the field only after their replay timestamp. Rewinding restores earlier information. No routes are assumed."
+          ></canvas>
+          <div
+            class="terrain-labels text-small"
+            id="terrain-labels"
+            aria-hidden="true"
+          ></div>
+          <span class="sr-only" id="terrain-accessible" aria-live="polite"
+            >No local observations. Broad uncertainty varies across the
+            neighborhood.</span
+          >
+        </div>
+        <div class="terrain-footer">
+          <span class="text-small text-muted"
+            >Drag to orbit · Pinch or scroll to zoom</span
+          >
+          <div class="viz-row">
+            <button type="button" class="btn btn-ghost" id="terrain-rotate">
+              Rotate
+            </button>
+            <button type="button" class="btn btn-ghost" id="terrain-tilt">
+              Tilt
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost"
+              id="terrain-in"
+              aria-label="Zoom in"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost"
+              id="terrain-out"
+              aria-label="Zoom out"
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+          </div>
+        </div>
+        <div class="terrain-key text-small">
+          <span><span class="legend-chip"></span>Median delivery time</span
+          ><span><span class="legend-chip band"></span>Central 80% band</span
+          ><span>Height = local time</span>
+        </div>
+        <div class="terrain-source text-small text-muted">
+          Map data ©
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OpenStreetMap contributors</a
+          >
+          · Downtown detail
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

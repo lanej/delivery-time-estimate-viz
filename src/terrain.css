@@ -1,0 +1,96 @@
+#delivery-probability-terrain {
+  color: var(--foreground);
+  width: 100%;
+}
+#delivery-probability-terrain .terrain-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 14px;
+}
+#delivery-probability-terrain h1 {
+  margin: 0;
+}
+#delivery-probability-terrain .evidence-head {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+#delivery-probability-terrain .replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#delivery-probability-terrain .replay-range {
+  flex: 1;
+  min-width: 0;
+}
+#delivery-probability-terrain .replay-endpoints {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+#delivery-probability-terrain .terrain-view {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+#delivery-probability-terrain canvas {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+#delivery-probability-terrain canvas:active {
+  cursor: grabbing;
+}
+#delivery-probability-terrain .terrain-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#delivery-probability-terrain .world-label {
+  position: absolute;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  color: var(--foreground);
+  text-shadow:
+    1px 0 var(--background),
+    -1px 0 var(--background),
+    0 1px var(--background),
+    0 -1px var(--background);
+}
+#delivery-probability-terrain .map-label {
+  opacity: 0.9;
+}
+#delivery-probability-terrain .terrain-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+#delivery-probability-terrain .terrain-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+  margin-top: 10px;
+}
+#delivery-probability-terrain .legend-chip {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  background: var(--viz-series-1);
+  opacity: 0.55;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+#delivery-probability-terrain .legend-chip.band {
+  opacity: 0.2;
+}
+#delivery-probability-terrain .terrain-source {
+  margin-top: 12px;
+}
