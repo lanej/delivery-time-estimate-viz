@@ -424,7 +424,7 @@ export function mountApp(root, renderer, day) {
     root.querySelector("#terrain-clock").textContent = clock(minutes / 60);
     evidence.setAttribute("aria-valuetext", complete
       ? `${clock(minutes / 60)}. Day complete. No remaining uncertainty.`
-      : `${clock(minutes / 60)}. ${stage} deliveries observed.`);
+      : `${clock(minutes / 60)}. ${stage} ${stage === 1 ? "delivery" : "deliveries"} observed.`);
     nextButton.disabled = minutes >= endMinutes;
     nextButton.textContent = minutes >= endMinutes ? "Replay ended" : "Next update";
     if (stage === activeStage && complete === activeComplete && state.index === activeSnapshot) return;

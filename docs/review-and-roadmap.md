@@ -4,6 +4,8 @@ Reviewed against `cd0d342e3f2b9e1efbc338e1e7b952494cac865a` on 2026-09-13.
 
 **Implementation update:** The first expansion now supports validated recorded-day import/export, configurable map extents/service areas/windows/timezones, and map selection plus searchable location inspection. The inspector compares current/previous quantiles, displays supplied density samples (including multiple peaks), and keeps delivery evidence separate from forecast availability. The synthetic Oakland day uses the same import contract. See [format v1](recording-format.md). A real shipment dataset, live feeds, revision handling, calibration dashboards, and polygon-conforming meshes remain future work. The review below describes the preceding code state.
 
+Expansion verification: five regression checks and the production build pass. Live browser checks cover location search, synthetic completion/rewind, recorded-file import, delayed evidence and forecast arrivals, unresolved outcomes at replay end, and rejection of future evidence while retaining the current replay. A downloaded export matches the supplied test recording. Browser rendering/inspection of the density panel was checked; 3D visual and map-pointer verification remain unavailable because this browser has WebGL disabled. The bundled building coordinates are now fixed to avoid runtime-dependent centroid differences.
+
 ## Review outcome
 
 The core behavior is sound for an illustrative replay: spatial conditioning is independent between areas, the 9–5 time scale stays fixed, rewind selects earlier evidence, and completion preserves the textured surface while removing the range. The map and synthetic outcomes remain distinct. No route is supplied or inferred.

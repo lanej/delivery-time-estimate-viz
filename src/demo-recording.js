@@ -1,18 +1,16 @@
-import { geoCentroid } from "d3";
 import map from "./data/oakland.json" with { type: "json" };
+import buildingSites from "./data/oakland-sites.json" with { type: "json" };
 import { createDemo } from "./model.js";
-import { createProjection, OAKLAND_BOUNDS, WORLD } from "./geography.js";
+import { createProjection, OAKLAND_BOUNDS } from "./geography.js";
 import { parseRecording } from "./recording.js";
 
 let cached;
 export function demoRecording() {
   if (cached) return cached;
   const projection = createProjection(OAKLAND_BOUNDS);
-  const locations = map.features.filter((feature) => feature.properties.kind === "building")
-    .map((feature, i) => {
-      const coordinates = geoCentroid(feature), p = projection.project(...coordinates);
-      return { ...p, coordinates, id: `building-${i + 1}`, label: feature.properties.name || `Building ${i + 1}` };
-    }).filter((p) => Math.abs(p.x) < WORLD.width * 0.42 && Math.abs(p.z) < WORLD.depth * 0.41);
+  // Freeze the sourced locations: tiny spherical-centroid differences between
+  // runtimes must not change which buildings are included in the demo.
+  const locations = buildingSites.map((site) => ({ ...site, ...projection.project(...site.coordinates) }));
   const demo = createDemo({ sites: locations });
   const areaIds = ["west", "central", "east"];
   const origin = Date.parse("2026-09-13T09:00:00-07:00");

@@ -11,4 +11,6 @@
 
 The application projects the geometry with D3 Mercator and paints it into a Three.js map texture. Prediction values are generated separately and are not OpenStreetMap data.
 
+`oakland-sites.json` freezes the 418 building locations used by the recording demo. IDs retain each building's one-based position among `oakland.json` building features; labels use the source name or `Building N`. Coordinates were derived once with D3 `geoCentroid`, then limited to the illustrated field (`|x| < 12.4 × 0.42`, `|z| < 9.3 × 0.41` under the projection in `geography.js`). Storing these derived coordinates avoids runtime-dependent changes in spherical centroid calculation and view-boundary inclusion. This file shares the map attribution/license below. It is not a verified address or ZIP dataset.
+
 Map data © OpenStreetMap contributors. Licensed under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
