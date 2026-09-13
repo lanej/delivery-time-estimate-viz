@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import * as d3 from "d3";
 import mapData from "./data/oakland.json";
-import { createDemo, stageAt, replayBounds } from "./model.js";
+import { createDemo, stageAt, replayBounds, replayAt } from "./model.js";
 import "./styles.css";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
@@ -137,7 +137,8 @@ const sites = mapData.features
     const [x, z] = worldCoord(...d3.geoCentroid(feature));
     return { x, z };
   });
-const { NX, NZ, vertices, predictions, scans, regions, timeMin, timeMax } = createDemo({ worldW, worldD, sites });
+const demo = createDemo({ worldW, worldD, sites });
+const { NX, NZ, vertices, predictions, scans, regions, timeMin, timeMax } = demo;
 // Height and color use the same fixed scale, even while uncertainty collapses.
 const timeScale = d3.scaleLinear().domain([9, 13, 17])
   .range(["#2563eb", "#995ac7", "#e3343f"]).clamp(true);
@@ -249,6 +250,10 @@ sides.renderOrder = 1;
 scene.add(sides);
 let current = predictions[0].map((p) => ({ ...p }));
 function updateGeometry(values) {
+  // At completion, render only the final surface. Coincident translucent bounds
+  // would otherwise darken the terrain and leave a false impression of a band.
+  const hasRange = values.some((p) => p.upper - p.lower > 1e-8);
+  lower.visible = upper.visible = sides.visible = hasRange;
   [lower, median, upper].forEach((mesh, j) => {
     const key = ["lower", "median", "upper"][j];
     const array = mesh.geometry.attributes.position.array;
@@ -518,28 +523,42 @@ const regionSummaries = regions.map((region, r) => {
   return { card, windowMinutes };
 });
 let activeStage = -1,
+  activeComplete = false,
   playing = false,
   playFrame = 0,
   playStarted = 0,
   playFrom = startMinutes;
 function syncReplay() {
-  const minutes = Number(evidence.value), stage = stageAt(scans, minutes);
+  const minutes = Number(evidence.value);
+  const { stage, complete, values: target } = replayAt(demo, minutes);
   root.querySelector("#terrain-clock").textContent = clock(minutes / 60);
-  evidence.setAttribute("aria-valuetext", `${clock(minutes / 60)}. ${stage} deliveries observed.`);
-  nextButton.disabled = stage === scans.length;
-  if (stage === activeStage) return;
+  evidence.setAttribute("aria-valuetext", complete
+    ? `${clock(minutes / 60)}. Day complete. No remaining uncertainty.`
+    : `${clock(minutes / 60)}. ${stage} deliveries observed.`);
+  nextButton.disabled = complete;
+  nextButton.textContent = complete ? "Day complete" : stage === scans.length ? "Finish day" : "Next delivery";
+  if (stage === activeStage && complete === activeComplete) return;
   const forward = stage > activeStage && stage > 0;
   activeStage = stage;
-  const target = predictions[stage], from = current.map((p) => ({ ...p }));
-  root.querySelector("#terrain-state").textContent = stage
+  activeComplete = complete;
+  const from = current.map((p) => ({ ...p }));
+  root.querySelector("#terrain-state").textContent = complete
+    ? "Day complete · final delivery surface"
+    : stage
     ? `${stage} deliveries · latest ${regions[scans[stage - 1].region].name}, ${clock(scans[stage - 1].time)}`
     : "No deliveries yet · broad ranges";
   const avg = d3.mean(target, (p) => (p.upper - p.lower) * 60);
-  root.querySelector("#terrain-accessible").textContent =
-    `${stage} deliveries observed. Average central 80 percent window: ${Math.round(avg)} minutes. Blue is earlier, red is later. Neighboring ranges narrow within the same delivery area; other areas remain unchanged.`;
+  root.querySelector("#terrain-accessible").textContent = complete
+    ? "Day complete. All delivery times are resolved. A single textured surface remains, with zero uncertainty in every area."
+    : `${stage} deliveries observed. Average central 80 percent window: ${Math.round(avg)} minutes. Blue is earlier, red is later. Neighboring ranges narrow within the same delivery area; other areas remain unchanged.`;
+  root.querySelector("#terrain-surface-key").textContent = complete
+    ? "Surface = final delivery times · no remaining range"
+    : "Surface = median · thickness = central 80% range";
   regionSummaries.forEach(({ card, windowMinutes }, r) => {
     card.querySelector(".region-window").textContent = `${windowMinutes(target)} min`;
-    card.querySelector(".region-delivered").textContent = `${scans.slice(0, stage).filter((p) => p.region === r).length} deliveries observed`;
+    card.querySelector(".region-delivered").textContent = complete
+      ? "All deliveries resolved"
+      : `${scans.slice(0, stage).filter((p) => p.region === r).length} deliveries observed`;
   });
   observationMarks.forEach((mark, i) => (mark.visible = i < stage));
   eventTicks.forEach((tick, i) => tick.classList.toggle("observed", i < stage));
@@ -557,7 +576,7 @@ function syncReplay() {
   function frame(now) {
     const t = duration ? Math.min(1, (now - start) / duration) : 1;
     const e = 1 - (1 - t) ** 3;
-    current = from.map((p, i) => ({
+    current = t === 1 ? target : from.map((p, i) => ({
       median: p.median + (target[i].median - p.median) * e,
       lower: p.lower + (target[i].lower - p.lower) * e,
       upper: p.upper + (target[i].upper - p.upper) * e,
@@ -583,7 +602,7 @@ evidence.addEventListener("input", () => {
 nextButton.addEventListener("click", () => {
   stopPlayback();
   const next = scans[stageAt(scans, Number(evidence.value))];
-  if (next) evidence.value = Math.round(next.time * 60);
+  evidence.value = next ? Math.round(next.time * 60) : endMinutes;
   syncReplay();
 });
 playButton.addEventListener("click", () => {

@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDemo, stageAt, replayBounds } from "../src/model.js";
+import { createDemo, stageAt, replayBounds, replayAt } from "../src/model.js";
 
-test("smooth textured 9–5 areas collapse locally, remain independent, and rewind correctly", () => {
-  const { NX, NZ, scans, predictions, vertices } = createDemo();
+test("smooth independent areas collapse locally, finish without a range, and rewind correctly", () => {
+  const demo = createDemo();
+  const { NX, NZ, scans, predictions, vertices } = demo;
   const bounds = replayBounds();
   const times = scans.map((scan) => Math.round(scan.time * 60));
   assert.deepEqual(bounds, { start: 540, end: 1020 });
@@ -58,5 +59,22 @@ test("smooth textured 9–5 areas collapse locally, remain independent, and rewi
       ["median", "lower", "upper"].every((key) => predictions[stage][i][key] === predictions[stage + 1][i][key])),
       `Delivery ${stage + 1} must leave every other region unchanged`);
   });
-  assert.deepEqual(predictions[stageAt(scans, bounds.start)], original);
+  const justBefore = replayAt(demo, bounds.end - 0.001);
+  assert.equal(justBefore.complete, false);
+  assert.equal(justBefore.stage, scans.length);
+  assert.ok(justBefore.values.every((p) => p.upper > p.lower),
+    "Sparse daytime observations must retain uncertainty until the complete outcomes arrive");
+  const finished = replayAt(demo, bounds.end);
+  assert.equal(finished.complete, true);
+  assert.ok(finished.values.every((p) =>
+    p.lower === p.median && p.upper === p.median && p.median >= 9 && p.median <= 17),
+    "All three areas finish with exactly one delivery time at every location");
+  const finalTimes = finished.values.map((p) => p.median);
+  assert.ok(Math.max(...finalTimes) - Math.min(...finalTimes) > 5,
+    "Zero range preserves the textured delivery-time surface, rather than flattening it");
+  assert.deepEqual(replayAt(demo, bounds.end + 30), finished);
+  assert.deepEqual(replayAt(demo, bounds.end - 1).values, predictions.at(-1));
+  assert.deepEqual(replayAt(demo, times[5]).values, predictions[6]);
+  assert.deepEqual(replayAt(demo, bounds.start).values, original);
+  assert.equal(replayAt(demo, bounds.start).complete, false);
 });

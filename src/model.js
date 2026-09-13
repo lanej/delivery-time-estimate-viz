@@ -79,18 +79,23 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     return a.amplitude * b.amplitude
       * Math.exp(-distance2 / (2 * lengthScale ** 2));
   }
-  const L = scans.map(() => []), residuals = [];
-  scans.forEach((obs, i) => {
-    for (let j = 0; j <= i; j++) {
-      let value = kernel(obs, scans[j]) + (i === j ? obs.noise ** 2 : 0);
-      for (let k = 0; k < j; k++) value -= L[i][k] * L[j][k];
-      L[i][j] = i === j ? Math.sqrt(Math.max(value, 1e-12)) : value / L[j][j];
-    }
-    let residual = toLatent(obs.time) - obs.mean;
-    for (let j = 0; j < i; j++) residual -= L[i][j] * residuals[j];
-    residuals.push(residual / L[i][i]);
-  });
-
+  function fit(exact = false) {
+    const L = scans.map(() => []), residuals = [];
+    scans.forEach((obs, i) => {
+      for (let j = 0; j <= i; j++) {
+        // The completion field interpolates the demo's observed outcomes;
+        // earlier predictions retain measurement/address uncertainty.
+        let value = kernel(obs, scans[j]) + (i === j ? (exact ? 1e-10 : obs.noise ** 2) : 0);
+        for (let k = 0; k < j; k++) value -= L[i][k] * L[j][k];
+        L[i][j] = i === j ? Math.sqrt(Math.max(value, 1e-12)) : value / L[j][j];
+      }
+      let residual = toLatent(obs.time) - obs.mean;
+      for (let j = 0; j < i; j++) residual -= L[i][j] * residuals[j];
+      residuals.push(residual / L[i][i]);
+    });
+    return { L, residuals };
+  }
+  const { L, residuals } = fit();
   const predictions = Array.from({ length: scans.length + 1 }, () => []);
   function interval(mean, variance) {
     const radius = QUANTILE_80 * Math.sqrt(Math.max(variance, 1e-12));
@@ -110,7 +115,26 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
       predictions[i + 1].push(interval(mean, variance));
     });
   });
-  return { NX, NZ, vertices, predictions, scans, regions, timeMin: DAY_START, timeMax: DAY_END };
+  // A separate, fully observed synthetic outcome snapshot becomes available at
+  // 5 PM. Sparse daytime scans alone must not imply certainty at unseen locations.
+  const exact = fit(true);
+  const completion = {
+    minutes: DAY_END * 60,
+    values: vertices.map((p) => {
+      let mean = p.mean;
+      const weights = [];
+      scans.forEach((obs, i) => {
+        let weight = kernel(p, obs);
+        for (let j = 0; j < i; j++) weight -= exact.L[i][j] * weights[j];
+        weight /= exact.L[i][i];
+        weights.push(weight);
+        mean += weight * exact.residuals[i];
+      });
+      const time = toHour(mean);
+      return { median: time, lower: time, upper: time };
+    }),
+  };
+  return { NX, NZ, vertices, predictions, scans, regions, completion, timeMin: DAY_START, timeMax: DAY_END };
 }
 
 /** Evidence available at the replay timestamp, in minutes after midnight. */
@@ -121,4 +145,11 @@ export function stageAt(scans, minutes) {
 /** The replay and vertical/color scales share the same fixed 9 AM–5 PM day. */
 export function replayBounds() {
   return { start: DAY_START * 60, end: DAY_END * 60 };
+}
+
+/** Select the available evidence, including the complete outcome surface at 5 PM. */
+export function replayAt(demo, minutes) {
+  const stage = stageAt(demo.scans, minutes);
+  const complete = minutes >= demo.completion.minutes;
+  return { stage, complete, values: complete ? demo.completion.values : demo.predictions[stage] };
 }
