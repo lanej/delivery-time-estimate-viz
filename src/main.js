@@ -151,7 +151,10 @@ for (let iz = 0; iz < NZ; iz++)
       b = a + 1,
       c = a + NX + 1,
       d = c + 1;
-    triangles.push(a, c, b, b, c, d);
+    for (const face of [[a, c, b], [b, c, d]]) {
+      if (face.every((i) => vertices[i].region === vertices[face[0]].region))
+        triangles.push(...face);
+    }
   }
 const geometries = [];
 function surfaceGeometry() {
@@ -198,12 +201,15 @@ scene.add(upper);
 
 // Fine mesh traces make curvature and the abrupt boundaries legible during orbit.
 const traceIndices = [];
+function addTrace(a, b) {
+  if (vertices[a].region === vertices[b].region) traceIndices.push(a, b);
+}
 for (let iz = 0; iz <= NZ; iz += 6)
   for (let ix = 0; ix < NX; ix++)
-    traceIndices.push(iz * (NX + 1) + ix, iz * (NX + 1) + ix + 1);
+    addTrace(iz * (NX + 1) + ix, iz * (NX + 1) + ix + 1);
 for (let ix = 0; ix <= NX; ix += 6)
   for (let iz = 0; iz < NZ; iz++)
-    traceIndices.push(iz * (NX + 1) + ix, (iz + 1) * (NX + 1) + ix);
+    addTrace(iz * (NX + 1) + ix, (iz + 1) * (NX + 1) + ix);
 const traceGeometry = new THREE.BufferGeometry();
 traceGeometry.setAttribute(
   "position",
@@ -219,11 +225,19 @@ const traceMaterial = new THREE.LineBasicMaterial({
 const traces = new THREE.LineSegments(traceGeometry, traceMaterial);
 traces.renderOrder = 4;
 scene.add(traces);
-const boundary = [];
-for (let i = 0; i <= NX; i++) boundary.push(i);
-for (let i = 1; i <= NZ; i++) boundary.push(i * (NX + 1) + NX);
-for (let i = NX - 1; i >= 0; i--) boundary.push(NZ * (NX + 1) + i);
-for (let i = NZ - 1; i > 0; i--) boundary.push(i * (NX + 1));
+// Close each area's uncertainty volume separately, including the shared edges.
+// The mesh never interpolates predictions across independent delivery areas.
+const edges = new Map();
+for (let i = 0; i < triangles.length; i += 3) {
+  const face = triangles.slice(i, i + 3);
+  for (let j = 0; j < 3; j++) {
+    const a = face[j], b = face[(j + 1) % 3];
+    const key = `${Math.min(a, b)}:${Math.max(a, b)}`;
+    if (edges.has(key)) edges.delete(key);
+    else edges.set(key, [a, b]);
+  }
+}
+const boundary = [...edges.values()];
 const sideGeometry = new THREE.BufferGeometry();
 sideGeometry.setAttribute(
   "position",
@@ -264,8 +278,7 @@ function updateGeometry(values) {
   traceGeometry.computeBoundingSphere();
   const edge = sideGeometry.attributes.position.array;
   const edgeColors = sideGeometry.attributes.color.array;
-  boundary.forEach((index, i) => {
-    const next = boundary[(i + 1) % boundary.length];
+  boundary.forEach(([index, next], i) => {
     [[index, "lower"], [index, "upper"], [next, "lower"],
       [next, "lower"], [index, "upper"], [next, "upper"]].forEach(([id, key], j) => {
       const p = vertices[id], hour = values[id][key], offset = i * 18 + j * 3;
@@ -496,7 +509,7 @@ const eventTicks = scans.map((scan) => {
 const regionSummaries = regions.map((region, r) => {
   const card = document.createElement("div");
   card.className = "region-summary";
-  card.innerHTML = `<strong>${region.name} region</strong><span class="region-delivered text-small"></span>
+  card.innerHTML = `<strong>${region.name} region</strong><span class="text-small text-muted">Independent 9 AM–5 PM area</span><span class="region-delivered text-small"></span>
     <span class="region-window tabular-nums"></span><span class="text-small text-muted">Average 80% window · <span class="region-prior"></span> at 9 AM</span>`;
   root.querySelector("#terrain-regions").appendChild(card);
   const indices = vertices.flatMap((p, i) => p.region === r ? [i] : []);
@@ -523,7 +536,7 @@ function syncReplay() {
     : "No deliveries yet · broad ranges";
   const avg = d3.mean(target, (p) => (p.upper - p.lower) * 60);
   root.querySelector("#terrain-accessible").textContent =
-    `${stage} deliveries observed. Average central 80 percent window: ${Math.round(avg)} minutes. Blue is earlier, red is later. Neighboring ranges narrow as evidence arrives; other regions retain uncertainty.`;
+    `${stage} deliveries observed. Average central 80 percent window: ${Math.round(avg)} minutes. Blue is earlier, red is later. Neighboring ranges narrow within the same delivery area; other areas remain unchanged.`;
   regionSummaries.forEach(({ card, windowMinutes }, r) => {
     card.querySelector(".region-window").textContent = `${windowMinutes(target)} min`;
     card.querySelector(".region-delivered").textContent = `${scans.slice(0, stage).filter((p) => p.region === r).length} deliveries observed`;

@@ -11,8 +11,12 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
   function field(x, z) {
     const u = x / (worldW / 2), v = z / (worldD / 2);
     const region = u + 0.18 * v < -0.25 ? 0 : u - 0.1 * v < 0.27 ? 1 : 2;
-    const hour = [10.8, 13, 15.2][region]
-      + 0.24 * Math.sin(4 * u + 2 * v) + 0.18 * Math.cos(5 * v);
+    const localX = (u - [-0.57, 0.01, 0.58][region]) / 0.29;
+    // Every region contains early, midday, and late locations. Different spatial
+    // patterns preserve independent terrain and abrupt changes at shared edges.
+    const phase = [v, -v, 0.85 * v + 0.15 * Math.sin(2 * localX)][region];
+    const hour = 13 + 3.6 * Math.tanh(1.5 * phase)
+      + 0.2 * Math.sin(3 * localX + region) + 0.12 * Math.cos(5 * v);
     return {
       x, z, region,
       mean: toLatent(hour),
@@ -28,16 +32,17 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
   const offsets = [[-0.06, -0.54], [0.09, -0.39], [-0.04, -0.12],
     [0.09, 0.06], [-0.08, 0.32], [0.03, 0.56]];
   const eventMinutes = [
-    [565, 590, 620, 645, 675, 700],
-    [710, 735, 760, 790, 825, 850],
-    [855, 880, 905, 935, 965, 995],
+    [565, 640, 725, 815, 900, 995],
+    [550, 655, 740, 825, 915, 1005],
+    [575, 630, 710, 800, 925, 985],
   ];
   const usableSites = sites
     .filter((p) => Math.abs(p.x) < worldW * 0.42 && Math.abs(p.z) < worldD * 0.41)
     .map((p) => field(p.x, p.z));
   const usedSites = new Set();
   const scans = regions.flatMap((region, r) => offsets.map(([du, v], i) => {
-    const x = (region.center + du) * worldW / 2, z = v * worldD / 2;
+    const x = (region.center + du) * worldW / 2;
+    const z = (r === 1 ? -v : v) * worldD / 2;
     // Anchor to distinct building footprints when map sites are supplied.
     const nearest = usableSites
       .filter((p) => p.region === r && !usedSites.has(p))
@@ -46,13 +51,15 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     return { ...(nearest || field(x, z)), time: eventMinutes[r][i] / 60 };
   })).sort((a, b) => a.time - b.time);
 
-  // Spatial covariance decays with distance and drops sharply at region edges.
+  // Each region is a separate 9–5 delivery area: no covariance across boundaries.
+  // Within an area, spatial covariance decays with geographic distance.
   // No routes are supplied or inferred. Independent address noise remains.
   const lengthScale = 1.8;
   function kernel(a, b) {
+    if (a.region !== b.region) return 0;
     const distance2 = (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
-    return a.amplitude * b.amplitude * (a.region === b.region ? 1 : 0.02)
-      * Math.exp(-distance2 / (2 * lengthScale ** 2)) + 0.025 ** 2;
+    return a.amplitude * b.amplitude
+      * Math.exp(-distance2 / (2 * lengthScale ** 2));
   }
   const L = scans.map(() => []), residuals = [];
   scans.forEach((obs, i) => {

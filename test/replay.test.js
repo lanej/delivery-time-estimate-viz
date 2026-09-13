@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemo, stageAt, replayBounds } from "../src/model.js";
 
-test("9–5 replay collapses nearby ranges in three regions and restores earlier evidence", () => {
+test("three independent 9–5 areas collapse locally without affecting each other and rewind correctly", () => {
   const { scans, predictions, vertices } = createDemo();
   const bounds = replayBounds();
   const times = scans.map((scan) => Math.round(scan.time * 60));
@@ -28,14 +28,22 @@ test("9–5 replay collapses nearby ranges in three regions and restores earlier
     const ranked = vertices.map((p, i) => ({ p, i })).sort((a, b) => distance(a.p) - distance(b.p));
     const near = ranked.find(({ p }) => p.region === region).i;
     const far = ranked.findLast(({ p }) => p.region === region).i;
-    const across = ranked.find(({ p }) => p.region !== region).i;
     const before = predictions[stage], after = predictions[stage + 1];
     assert.ok(width(after[near]) < width(before[near]) * 0.4, `Region ${region}: local window collapses`);
     assert.ok(Math.abs(width(after[far]) / width(before[far]) - 1) < 0.02, "Distant locations retain uncertainty");
-    assert.ok(Math.abs(width(after[across]) / width(before[across]) - 1) < 0.03, "Region boundary limits influence");
     const priorMedians = vertices.flatMap((p, i) => p.region === region ? [original[i].median] : []);
-    const median = priorMedians.reduce((a, b) => a + b) / priorMedians.length;
-    assert.ok(Math.abs(median - [10.8, 13, 15.2][region]) < 0.5, "Regions have distinct timing");
+    assert.ok(Math.min(...priorMedians) < 11 && Math.max(...priorMedians) > 15,
+      "Every region includes early and late predictions");
+    const events = scans.filter((p) => p.region === region);
+    assert.ok(events[0].time < 10 && events.at(-1).time > 16,
+      "Every region has deliveries near both ends of 9–5");
+    assert.ok(events.some((p) => p.time > 11.5 && p.time < 14.5),
+      "Every region also has midday deliveries");
   }
+  scans.forEach((scan, stage) => {
+    assert.ok(vertices.every((p, i) => p.region === scan.region ||
+      ["median", "lower", "upper"].every((key) => predictions[stage][i][key] === predictions[stage + 1][i][key])),
+      `Delivery ${stage + 1} must leave every other region unchanged`);
+  });
   assert.deepEqual(predictions[stageAt(scans, bounds.start)], original);
 });
