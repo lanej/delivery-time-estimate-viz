@@ -281,11 +281,12 @@ function updateGeometry(values) {
 updateGeometry(current);
 
 const observationOutline = new THREE.MeshBasicMaterial({
-  color: colors.foreground, side: THREE.BackSide, depthTest: false, depthWrite: false,
+  color: colors.foreground, side: THREE.BackSide, transparent: true, depthTest: false, depthWrite: false,
 });
 const observationMarks = scans.map((p) => {
   const group = new THREE.Group();
-  const material = new THREE.MeshBasicMaterial({ color: timeColor(p.time), depthTest: false, depthWrite: false });
+  // Share the transparent render pass so pins draw after the probability band.
+  const material = new THREE.MeshBasicMaterial({ color: timeColor(p.time), transparent: true, depthTest: false, depthWrite: false });
   const mark = new THREE.Mesh(new THREE.SphereGeometry(0.095, 12, 8), material);
   const outline = new THREE.Mesh(new THREE.SphereGeometry(0.125, 12, 8), observationOutline);
   mark.position.set(p.x, timeY(p.time), p.z);
