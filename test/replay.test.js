@@ -1,15 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDemo, stageAt, replayBounds, replayAt } from "../src/model.js";
+import { createDemo, stageAt, replayBounds, replayAt, observationMinutes } from "../src/model.js";
 
 test("smooth independent areas collapse locally, finish without a range, and rewind correctly", () => {
   const demo = createDemo();
   const { NX, NZ, scans, predictions, vertices } = demo;
   const bounds = replayBounds();
-  const times = scans.map((scan) => Math.round(scan.time * 60));
+  const times = scans.map(observationMinutes);
   assert.deepEqual(bounds, { start: 540, end: 1020 });
   assert.deepEqual([0, 1, 2].map((r) => scans.filter((p) => p.region === r).length), [6, 6, 6]);
   assert.ok(times.every((time) => time > bounds.start && time < bounds.end));
+  times.forEach((time, i) => assert.equal(stageAt(scans, time), i + 1,
+    "Every demo event is available at its exact scheduled minute"));
   assert.ok(vertices.length > 6000);
   assert.deepEqual(
     [bounds.start, times[0] - 0.001, times[0], times[1], bounds.end, times[0], bounds.start]
@@ -77,4 +79,20 @@ test("smooth independent areas collapse locally, finish without a range, and rew
   assert.deepEqual(replayAt(demo, times[5]).values, predictions[6]);
   assert.deepEqual(replayAt(demo, bounds.start).values, original);
   assert.equal(replayAt(demo, bounds.start).complete, false);
+  const incomplete = replayAt({ ...demo, completion: undefined }, bounds.end + 60);
+  assert.equal(incomplete.complete, false, "The clock cannot manufacture resolved outcomes");
+  assert.equal(incomplete.values, predictions.at(-1));
+});
+
+test("replay respects fractional availability, delayed evidence, ties, and rewind", () => {
+  const scans = [
+    { time: 9.5, availableMinutes: 570.25 },
+    { time: 9, availableMinutes: 600 },
+    { time: 9.9, availableMinutes: 600 },
+  ];
+  assert.deepEqual([540, 570, 570.249, 570.25, 599.99, 600, 570.25, 540]
+    .map((minutes) => stageAt(scans, minutes)), [0, 0, 0, 1, 1, 3, 1, 0]);
+  const legacy = [{ time: 9.501 }];
+  assert.equal(stageAt(legacy, 570), 0, "Fractional delivery times must not be rounded into earlier evidence");
+  assert.equal(stageAt(legacy, legacy[0].time * 60), 1);
 });

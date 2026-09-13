@@ -36,11 +36,15 @@ The production build is written to `dist/`. Relative asset paths allow serving i
 
 | File                                | Purpose                                                                              |
 | ----------------------------------- | ------------------------------------------------------------------------------------ |
-| `src/main.js`                       | Three.js scene, map texture, dense surfaces, camera controls, and replay interaction |
+| `src/main.js`                       | Startup, graphics failure feedback, and app lifecycle |
+| `src/app.js`                        | Oakland map/scene, camera controls, replay interaction, and resource teardown |
+| `src/terrain.js`                    | Reusable quantile meshes and shared height/color encoding |
 | `src/model.js`                      | Bounded spatial probability field, local conditioning, and evidence snapshot selection  |
 | `src/styles.css`, `src/terrain.css` | Standalone responsive styling and light/dark appearance                              |
 | `src/data/oakland.json`             | Bundled OpenStreetMap geometry                                                       |
 | `test/replay.test.js`               | Regression check for 9–5 bounds, smooth textured independent areas, local collapse, exact completion, and rewind behavior                          |
+| `test/terrain.test.js`              | Rendered geometry boundaries, resolved surface, and band restoration on rewind |
+| `docs/review-and-roadmap.md`        | Code review, proposed data contract, and phased expansion plan |
 
 ## Model scope
 
@@ -48,9 +52,11 @@ This is the visualization prototype developed in the conversation, packaged as a
 
 The demo uses a spatial Gaussian process in transformed time, mapped monotonically into 9 AM–5 PM. Its median and 10th/90th percentiles form the surfaces; these are bounded quantiles, not clipped Gaussian intervals. Covariance falls with geographic distance within each area and is exactly zero across region boundaries. An observation in one region leaves every prediction in the other two unchanged. Each area spans the full day with its own smooth spatial timing pattern. The prior combines continuous variation at several spatial scales, giving each area multiple local peaks and valleys instead of a directional ramp or internal steps. Synthetic delivery locations are sampled near plausible prior times across the landscape, without a prescribed travel sequence. The meshes have separate boundaries so their ranges are not interpolated together. Daytime observations update the correlated field while retaining independent residual uncertainty. At 5 PM, a separate synthetic snapshot supplies resolved outcomes for the entire field. Its smooth values interpolate the shown deliveries; each final value is displayed with identical lower and upper bounds. This completion state is explicitly supplied by the demo, not inferred as certainty from the 18 sparse observations. The clock alone does not shrink the daytime distributions. Delivery markers use actual observed times; the surrounding surface represents predictions for the dense grid.
 
-The West, Central, and East labels describe illustrative model regions, not known routes or ZIP boundaries. Synthetic event locations are anchored to distinct building footprints. This example assumes deliveries occur within the illustrated day; real systems should allow outcomes outside business hours. Multimodal distributions, delayed scan ingestion, and evidence from known non-delivery are not modeled here. Replay uses event time as availability time.
+The West, Central, and East labels describe illustrative model regions, not known routes or ZIP boundaries. Synthetic event locations are anchored to distinct building footprints. This example assumes deliveries occur within the illustrated day; real systems should allow outcomes outside business hours. Multimodal distributions and evidence from known non-delivery are not modeled here. Demo events supply explicit `availableMinutes`, equal to their delivery times; replay can select delayed evidence when a later availability is supplied. Scans and prediction prefixes must be ordered by availability. The demo UI advances in whole minutes.
 
 For real data, replace `createDemo` with model snapshots or observations carrying explicit availability timestamps. Keep future observations out of earlier replay states, and preserve spatial discontinuities supported by the underlying predictions.
+
+See the [code review and expansion plan](docs/review-and-roadmap.md) for a proposed data contract, address inspection, real-day replay, calibration, and larger spatial fields. These are proposed next steps, not implemented features.
 
 ## Map attribution
 

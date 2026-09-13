@@ -66,8 +66,8 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
       if (value < bestScore) { bestScore = value; nearest = p; }
     }
     if (nearest) usedSites.add(nearest);
-    return { ...(nearest || field(x, z)), time };
-  })).sort((a, b) => a.time - b.time);
+    return { ...(nearest || field(x, z)), time, availableMinutes: eventMinutes[r][i] };
+  })).sort((a, b) => observationMinutes(a) - observationMinutes(b));
 
   // Each region is a separate 9–5 delivery area: no covariance across boundaries.
   // Within an area, spatial covariance decays with geographic distance.
@@ -137,9 +137,20 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
   return { NX, NZ, vertices, predictions, scans, regions, completion, timeMin: DAY_START, timeMax: DAY_END };
 }
 
-/** Evidence available at the replay timestamp, in minutes after midnight. */
+/** Availability is separate from delivery time; the demo makes them coincide. */
+export function observationMinutes(scan) {
+  return scan.availableMinutes ?? scan.time * 60;
+}
+
+/** Count available evidence. Scans and prediction prefixes must be ordered by availability. */
 export function stageAt(scans, minutes) {
-  return scans.filter((scan) => Math.round(scan.time * 60) <= minutes).length;
+  let low = 0, high = scans.length;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (observationMinutes(scans[mid]) <= minutes) low = mid + 1;
+    else high = mid;
+  }
+  return low;
 }
 
 /** The replay and vertical/color scales share the same fixed 9 AM–5 PM day. */
@@ -147,9 +158,9 @@ export function replayBounds() {
   return { start: DAY_START * 60, end: DAY_END * 60 };
 }
 
-/** Select the available evidence, including the complete outcome surface at 5 PM. */
+/** Completion requires a supplied outcome snapshot, never just the end of the clock. */
 export function replayAt(demo, minutes) {
   const stage = stageAt(demo.scans, minutes);
-  const complete = minutes >= demo.completion.minutes;
+  const complete = Boolean(demo.completion && minutes >= demo.completion.minutes);
   return { stage, complete, values: complete ? demo.completion.values : demo.predictions[stage] };
 }
