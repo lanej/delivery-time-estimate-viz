@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemo, stageAt, replayBounds } from "../src/model.js";
 
-test("three independent 9–5 areas collapse locally without affecting each other and rewind correctly", () => {
-  const { scans, predictions, vertices } = createDemo();
+test("smooth textured 9–5 areas collapse locally, remain independent, and rewind correctly", () => {
+  const { NX, NZ, scans, predictions, vertices } = createDemo();
   const bounds = replayBounds();
   const times = scans.map((scan) => Math.round(scan.time * 60));
   assert.deepEqual(bounds, { start: 540, end: 1020 });
@@ -21,6 +21,19 @@ test("three independent 9–5 areas collapse locally without affecting each othe
       Number.isFinite(p.median) && p.lower >= 9 && p.lower < p.median
       && p.median < p.upper && p.upper <= 17));
   }
+  const peaks = [0, 0, 0], valleys = [0, 0, 0];
+  for (let z = 1; z < NZ; z++) for (let x = 1; x < NX; x++) {
+    const i = z * (NX + 1) + x, region = vertices[i].region;
+    const neighbors = [i - 1, i + 1, i - NX - 1, i + NX + 1];
+    if (!neighbors.every((j) => vertices[j].region === region)) continue;
+    const value = original[i].median;
+    assert.ok(neighbors.every((j) => Math.abs(value - original[j].median) < 0.75),
+      "No abrupt steps inside a delivery area; boundary cliffs are allowed");
+    if (neighbors.every((j) => value > original[j].median)) peaks[region]++;
+    if (neighbors.every((j) => value < original[j].median)) valleys[region]++;
+  }
+  assert.ok(peaks.every((count) => count >= 2) && valleys.every((count) => count >= 1),
+    "Every area needs local hills and valleys, not one directional ramp");
   const width = (p) => p.upper - p.lower;
   for (let region = 0; region < 3; region++) {
     const stage = scans.findIndex((p) => p.region === region), scan = scans[stage];

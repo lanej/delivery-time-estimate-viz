@@ -12,15 +12,17 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     const u = x / (worldW / 2), v = z / (worldD / 2);
     const region = u + 0.18 * v < -0.25 ? 0 : u - 0.1 * v < 0.27 ? 1 : 2;
     const localX = (u - [-0.57, 0.01, 0.58][region]) / 0.29;
-    // Every region contains early, midday, and late locations. Different spatial
-    // patterns preserve independent terrain and abrupt changes at shared edges.
-    const phase = [v, -v, 0.85 * v + 0.15 * Math.sin(2 * localX)][region];
-    const hour = 13 + 3.6 * Math.tanh(1.5 * phase)
-      + 0.2 * Math.sin(3 * localX + region) + 0.12 * Math.cos(5 * v);
+    // Smooth variation at several spatial scales: hills, valleys, and smaller
+    // ripples throughout every area. No directional ramp or interior thresholds.
+    const phase = [0.35, 2.1, 4.4][region];
+    const hour = 13
+      + 2.2 * Math.sin(2.6 * localX + 1.2 * v + phase) * Math.cos(4.1 * v - 0.4 * localX + phase)
+      + 0.95 * Math.sin(7.5 * v + 2 * localX - 1.3 * phase)
+      + 0.4 * Math.cos(5.8 * localX - 4.3 * v + phase);
     return {
       x, z, region,
       mean: toLatent(hour),
-      amplitude: 0.86 + 0.12 * Math.cos(3 * u - 2 * v),
+      amplitude: 0.82 + 0.14 * Math.cos(2 * localX + 3 * v + phase) + 0.08 * Math.sin(5 * v - localX),
       noise: 0.12,
     };
   }
@@ -29,6 +31,12 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     { name: "Central", center: 0.01 },
     { name: "East", center: 0.58 },
   ];
+  const NX = 88, NZ = 72, vertices = [];
+  for (let iz = 0; iz <= NZ; iz++)
+    for (let ix = 0; ix <= NX; ix++)
+      vertices.push(field((ix / NX - 0.5) * worldW * 0.84,
+        (iz / NZ - 0.5) * worldD * 0.82));
+
   const offsets = [[-0.06, -0.54], [0.09, -0.39], [-0.04, -0.12],
     [0.09, 0.06], [-0.08, 0.32], [0.03, 0.56]];
   const eventMinutes = [
@@ -36,19 +44,29 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     [550, 655, 740, 825, 915, 1005],
     [575, 630, 710, 800, 925, 985],
   ];
-  const usableSites = sites
+  const buildingSites = sites
     .filter((p) => Math.abs(p.x) < worldW * 0.42 && Math.abs(p.z) < worldD * 0.41)
     .map((p) => field(p.x, p.z));
+  const usableSites = buildingSites.length ? buildingSites : vertices;
   const usedSites = new Set();
   const scans = regions.flatMap((region, r) => offsets.map(([du, v], i) => {
     const x = (region.center + du) * worldW / 2;
     const z = (r === 1 ? -v : v) * worldD / 2;
-    // Anchor to distinct building footprints when map sites are supplied.
-    const nearest = usableSites
-      .filter((p) => p.region === r && !usedSites.has(p))
-      .sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
+    const time = eventMinutes[r][i] / 60;
+    // Observe distinct locations with plausible prior times across the whole day,
+    // rather than walking a prescribed north–south sequence through the map.
+    const score = (p) => Math.abs(toHour(p.mean) - time - 0.2 * Math.sin(i + r))
+      + 0.045 * Math.hypot(p.x - x, p.z - z)
+      + [...usedSites].filter((q) => q.region === r)
+        .reduce((sum, q) => sum + 0.5 * Math.exp(-((p.x - q.x) ** 2 + (p.z - q.z) ** 2) / 0.7), 0);
+    let nearest, bestScore = Infinity;
+    for (const p of usableSites) {
+      if (p.region !== r || usedSites.has(p)) continue;
+      const value = score(p);
+      if (value < bestScore) { bestScore = value; nearest = p; }
+    }
     if (nearest) usedSites.add(nearest);
-    return { ...(nearest || field(x, z)), time: eventMinutes[r][i] / 60 };
+    return { ...(nearest || field(x, z)), time };
   })).sort((a, b) => a.time - b.time);
 
   // Each region is a separate 9–5 delivery area: no covariance across boundaries.
@@ -72,12 +90,6 @@ export function createDemo({ worldW = 12.4, worldD = 9.3, sites = [] } = {}) {
     for (let j = 0; j < i; j++) residual -= L[i][j] * residuals[j];
     residuals.push(residual / L[i][i]);
   });
-
-  const NX = 88, NZ = 72, vertices = [];
-  for (let iz = 0; iz <= NZ; iz++)
-    for (let ix = 0; ix <= NX; ix++)
-      vertices.push(field((ix / NX - 0.5) * worldW * 0.84,
-        (iz / NZ - 0.5) * worldD * 0.82));
 
   const predictions = Array.from({ length: scans.length + 1 }, () => []);
   function interval(mean, variance) {
