@@ -23,10 +23,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 #delivery-probability-terrain .replay-range {
   flex: 1;
-  min-width: 0;
+  min-width: 220px;
 }
 #delivery-probability-terrain .replay-endpoints {
   display: flex;
@@ -66,6 +67,13 @@
 #delivery-probability-terrain .map-label {
   opacity: 0.9;
 }
+#delivery-probability-terrain .region-label {
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--background);
+  border: 1px solid var(--border);
+}
 #delivery-probability-terrain .terrain-footer {
   display: flex;
   justify-content: space-between;
@@ -79,18 +87,66 @@
   gap: 5px 16px;
   margin-top: 10px;
 }
-#delivery-probability-terrain .legend-chip {
+#delivery-probability-terrain .legend-dot {
   display: inline-block;
-  width: 16px;
+  width: 8px;
   height: 8px;
-  background: var(--viz-series-1);
-  opacity: 0.55;
+  background: #995ac7;
+  border: 1px solid var(--foreground);
+  border-radius: 50%;
   vertical-align: middle;
   margin-right: 5px;
 }
-#delivery-probability-terrain .legend-chip.band {
-  opacity: 0.2;
-}
 #delivery-probability-terrain .terrain-source {
   margin-top: 12px;
+}
+.time-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.time-gradient {
+  flex: 1;
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #2563eb, #995ac7, #e3343f);
+}
+.event-ticks {
+  height: 8px;
+  position: relative;
+  margin: 0 7px;
+}
+.event-tick {
+  position: absolute;
+  width: 4px;
+  height: 5px;
+  border-radius: 1px;
+  transform: translateX(-50%);
+  opacity: 0.22;
+}
+.event-tick.observed { opacity: 1; }
+.terrain-regions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+.region-summary {
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--border);
+  padding-top: 10px;
+  gap: 3px;
+}
+.region-window {
+  font-size: 22px;
+  margin-top: 4px;
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 520px) {
+  #delivery-probability-terrain .replay-range { flex-basis: 100%; }
+  .terrain-regions { gap: 10px; }
+  .region-summary strong { font-size: 12px; }
+  .region-window { font-size: 20px; }
 }

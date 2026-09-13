@@ -131,10 +131,18 @@ function drawMap() {
 }
 drawMap();
 
-const { NX, NZ, vertices, predictions, scans, timeMin, timeMax } = createDemo(
-  worldCoord,
-  { worldW, worldD },
-);
+const sites = mapData.features
+  .filter((feature) => feature.properties.kind === "building")
+  .map((feature) => {
+    const [x, z] = worldCoord(...d3.geoCentroid(feature));
+    return { x, z };
+  });
+const { NX, NZ, vertices, predictions, scans, regions, timeMin, timeMax } = createDemo({ worldW, worldD, sites });
+// Height and color use the same fixed scale, even while uncertainty collapses.
+const timeScale = d3.scaleLinear().domain([9, 13, 17])
+  .range(["#2563eb", "#995ac7", "#e3343f"]).clamp(true);
+const palette = Array.from({ length: 257 }, (_, i) => new THREE.Color(timeScale(9 + i / 32)));
+const timeColor = (hour) => palette[Math.round(THREE.MathUtils.clamp((hour - 9) * 32, 0, 256))];
 const timeY = (t) => 0.4 + (t - timeMin) * 0.66;
 const triangles = [];
 for (let iz = 0; iz < NZ; iz++)
@@ -152,15 +160,17 @@ function surfaceGeometry() {
     "position",
     new THREE.BufferAttribute(new Float32Array(vertices.length * 3), 3),
   );
+  g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(vertices.length * 3), 3));
   g.setIndex(triangles);
   geometries.push(g);
   return g;
 }
-const baseColor = new THREE.Color(colors["viz-series-1"]);
+const baseColor = new THREE.Color(0xffffff);
 const medianMaterial = new THREE.MeshStandardMaterial({
   color: baseColor,
+  vertexColors: true,
   transparent: true,
-  opacity: 0.55,
+  opacity: 0.65,
   roughness: 0.88,
   metalness: 0,
   side: THREE.DoubleSide,
@@ -168,8 +178,9 @@ const medianMaterial = new THREE.MeshStandardMaterial({
 });
 const bandMaterial = new THREE.MeshStandardMaterial({
   color: baseColor,
+  vertexColors: true,
   transparent: true,
-  opacity: 0.15,
+  opacity: 0.16,
   roughness: 1,
   metalness: 0,
   side: THREE.DoubleSide,
@@ -198,8 +209,9 @@ traceGeometry.setAttribute(
   "position",
   new THREE.BufferAttribute(new Float32Array(traceIndices.length * 3), 3),
 );
+traceGeometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(traceIndices.length * 3), 3));
 const traceMaterial = new THREE.LineBasicMaterial({
-  color: baseColor,
+  vertexColors: true,
   transparent: true,
   opacity: 0.26,
   depthWrite: false,
@@ -217,62 +229,88 @@ sideGeometry.setAttribute(
   "position",
   new THREE.BufferAttribute(new Float32Array(boundary.length * 18), 3),
 );
+sideGeometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(boundary.length * 18), 3));
 const sides = new THREE.Mesh(sideGeometry, bandMaterial);
 sides.renderOrder = 1;
 scene.add(sides);
 let current = predictions[0].map((p) => ({ ...p }));
 function updateGeometry(values) {
-  const q = 1.281551566;
   [lower, median, upper].forEach((mesh, j) => {
+    const key = ["lower", "median", "upper"][j];
     const array = mesh.geometry.attributes.position.array;
+    const color = mesh.geometry.attributes.color.array;
     vertices.forEach((p, i) => {
+      const hour = values[i][key];
       array[i * 3] = p.x;
-      array[i * 3 + 1] = timeY(values[i].mean + (j - 1) * q * values[i].sd);
+      array[i * 3 + 1] = timeY(hour);
       array[i * 3 + 2] = p.z;
+      timeColor(hour).toArray(color, i * 3);
     });
     mesh.geometry.attributes.position.needsUpdate = true;
+    mesh.geometry.attributes.color.needsUpdate = true;
     mesh.geometry.computeVertexNormals();
     mesh.geometry.computeBoundingSphere();
   });
   const a = traceGeometry.attributes.position.array;
+  const traceColors = traceGeometry.attributes.color.array;
   traceIndices.forEach((index, i) => {
     a[i * 3] = vertices[index].x;
-    a[i * 3 + 1] = timeY(values[index].mean) + 0.008;
+    a[i * 3 + 1] = timeY(values[index].median) + 0.008;
     a[i * 3 + 2] = vertices[index].z;
+    timeColor(values[index].median).toArray(traceColors, i * 3);
   });
   traceGeometry.attributes.position.needsUpdate = true;
+  traceGeometry.attributes.color.needsUpdate = true;
   traceGeometry.computeBoundingSphere();
   const edge = sideGeometry.attributes.position.array;
+  const edgeColors = sideGeometry.attributes.color.array;
   boundary.forEach((index, i) => {
-    const next = boundary[(i + 1) % boundary.length],
-      p = vertices[index],
-      r = vertices[next];
-    const lo = [p.x, timeY(values[index].mean - q * values[index].sd), p.z],
-      hi = [p.x, timeY(values[index].mean + q * values[index].sd), p.z];
-    const lo2 = [r.x, timeY(values[next].mean - q * values[next].sd), r.z],
-      hi2 = [r.x, timeY(values[next].mean + q * values[next].sd), r.z];
-    edge.set([...lo, ...hi, ...lo2, ...lo2, ...hi, ...hi2], i * 18);
+    const next = boundary[(i + 1) % boundary.length];
+    [[index, "lower"], [index, "upper"], [next, "lower"],
+      [next, "lower"], [index, "upper"], [next, "upper"]].forEach(([id, key], j) => {
+      const p = vertices[id], hour = values[id][key], offset = i * 18 + j * 3;
+      edge.set([p.x, timeY(hour), p.z], offset);
+      timeColor(hour).toArray(edgeColors, offset);
+    });
   });
   sideGeometry.attributes.position.needsUpdate = true;
+  sideGeometry.attributes.color.needsUpdate = true;
   sideGeometry.computeVertexNormals();
   sideGeometry.computeBoundingSphere();
 }
 updateGeometry(current);
 
-const observationMaterial = new THREE.MeshBasicMaterial({
-  color: colors.foreground,
+const observationOutline = new THREE.MeshBasicMaterial({
+  color: colors.foreground, side: THREE.BackSide, depthTest: false, depthWrite: false,
 });
 const observationMarks = scans.map((p) => {
-  const mark = new THREE.Mesh(
-    new THREE.SphereGeometry(0.072, 12, 8),
-    observationMaterial,
-  );
+  const group = new THREE.Group();
+  const material = new THREE.MeshBasicMaterial({ color: timeColor(p.time), depthTest: false, depthWrite: false });
+  const mark = new THREE.Mesh(new THREE.SphereGeometry(0.095, 12, 8), material);
+  const outline = new THREE.Mesh(new THREE.SphereGeometry(0.125, 12, 8), observationOutline);
   mark.position.set(p.x, timeY(p.time), p.z);
-  mark.visible = false;
-  mark.renderOrder = 6;
-  scene.add(mark);
-  return mark;
+  outline.position.copy(mark.position);
+  outline.renderOrder = 7;
+  mark.renderOrder = 8;
+  const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(p.x, 0.025, p.z), mark.position.clone(),
+  ]), new THREE.LineBasicMaterial({ color: timeColor(p.time), transparent: true, opacity: 0.65, depthWrite: false }));
+  const foot = new THREE.Mesh(new THREE.RingGeometry(0.06, 0.105, 20), material);
+  foot.rotation.x = -Math.PI / 2;
+  foot.position.set(p.x, 0.025, p.z);
+  foot.renderOrder = 8;
+  group.add(outline, mark, stem, foot);
+  group.visible = false;
+  scene.add(group);
+  return group;
 });
+const pulseMaterial = new THREE.MeshBasicMaterial({
+  transparent: true, opacity: 0, side: THREE.DoubleSide, depthTest: false, depthWrite: false,
+});
+const pulse = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.23, 40), pulseMaterial);
+pulse.rotation.x = -Math.PI / 2;
+pulse.renderOrder = 9;
+scene.add(pulse);
 const labels = [];
 function addLabel(text, position, kind) {
   const element = document.createElement("span");
@@ -282,6 +320,9 @@ function addLabel(text, position, kind) {
   const label = { element, position: new THREE.Vector3(...position), kind };
   labels.push(label);
   return label;
+}
+for (const region of regions) {
+  addLabel(`${region.name} region`, [region.center * worldW / 2, 0.08, -worldD * 0.43], "region-label");
 }
 const roadNames = [
   "Broadway",
@@ -435,49 +476,80 @@ const clock = (t) => {
     h = Math.floor(m / 60);
   return `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 };
-const { start: startMinutes, end: endMinutes } = replayBounds(scans);
+const { start: startMinutes, end: endMinutes } = replayBounds();
 evidence.min = startMinutes;
 evidence.max = endMinutes;
 evidence.value = startMinutes;
 root.querySelector("#terrain-start").textContent = clock(startMinutes / 60);
 root.querySelector("#terrain-end").textContent = clock(endMinutes / 60);
 const playButton = root.querySelector("#terrain-play");
-let activeStage = 0,
+const nextButton = root.querySelector("#terrain-next");
+const eventTicks = scans.map((scan) => {
+  const tick = document.createElement("span");
+  tick.className = "event-tick";
+  tick.style.left = `${(scan.time * 60 - startMinutes) / (endMinutes - startMinutes) * 100}%`;
+  tick.style.background = timeScale(scan.time);
+  root.querySelector("#terrain-events").appendChild(tick);
+  return tick;
+});
+const regionSummaries = regions.map((region, r) => {
+  const card = document.createElement("div");
+  card.className = "region-summary";
+  card.innerHTML = `<strong>${region.name} region</strong><span class="region-delivered text-small"></span>
+    <span class="region-window tabular-nums"></span><span class="text-small text-muted">Average 80% window · <span class="region-prior"></span> at 9 AM</span>`;
+  root.querySelector("#terrain-regions").appendChild(card);
+  const indices = vertices.flatMap((p, i) => p.region === r ? [i] : []);
+  const windowMinutes = (values) => Math.round(d3.mean(indices, (i) => (values[i].upper - values[i].lower) * 60));
+  card.querySelector(".region-prior").textContent = `${windowMinutes(predictions[0])} min`;
+  return { card, windowMinutes };
+});
+let activeStage = -1,
   playing = false,
   playFrame = 0,
   playStarted = 0,
   playFrom = startMinutes;
 function syncReplay() {
-  const minutes = Number(evidence.value),
-    stage = stageAt(scans, minutes);
+  const minutes = Number(evidence.value), stage = stageAt(scans, minutes);
   root.querySelector("#terrain-clock").textContent = clock(minutes / 60);
-  evidence.setAttribute(
-    "aria-valuetext",
-    `${clock(minutes / 60)}. ${stage} local observations available.`,
-  );
+  evidence.setAttribute("aria-valuetext", `${clock(minutes / 60)}. ${stage} deliveries observed.`);
+  nextButton.disabled = stage === scans.length;
   if (stage === activeStage) return;
+  const forward = stage > activeStage && stage > 0;
   activeStage = stage;
-  const target = predictions[stage],
-    from = current.map((p) => ({ ...p }));
+  const target = predictions[stage], from = current.map((p) => ({ ...p }));
   root.querySelector("#terrain-state").textContent = stage
-    ? `${stage} observations · latest ${clock(scans[stage - 1].time)}`
-    : "Prior distribution";
-  const avg = d3.mean(target, (p) => 2 * 1.281551566 * p.sd * 60);
+    ? `${stage} deliveries · latest ${regions[scans[stage - 1].region].name}, ${clock(scans[stage - 1].time)}`
+    : "No deliveries yet · broad ranges";
+  const avg = d3.mean(target, (p) => (p.upper - p.lower) * 60);
   root.querySelector("#terrain-accessible").textContent =
-    `${stage} local observations. Average central 80 percent interval: ${Math.round(avg)} minutes. Nearby areas may retain different times and uncertainty.`;
+    `${stage} deliveries observed. Average central 80 percent window: ${Math.round(avg)} minutes. Blue is earlier, red is later. Neighboring ranges narrow as evidence arrives; other regions retain uncertainty.`;
+  regionSummaries.forEach(({ card, windowMinutes }, r) => {
+    card.querySelector(".region-window").textContent = `${windowMinutes(target)} min`;
+    card.querySelector(".region-delivered").textContent = `${scans.slice(0, stage).filter((p) => p.region === r).length} deliveries observed`;
+  });
   observationMarks.forEach((mark, i) => (mark.visible = i < stage));
+  eventTicks.forEach((tick, i) => tick.classList.toggle("observed", i < stage));
   cancelAnimationFrame(animation);
-  const start = performance.now(),
-    duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ? 0
-      : 650;
+  pulseMaterial.opacity = 0;
+  if (forward) {
+    const latest = scans[stage - 1];
+    pulse.position.set(latest.x, 0.035, latest.z);
+    pulseMaterial.color.copy(timeColor(latest.time));
+  }
+  // Delivery points appear first, followed by the local interval transition.
+  render();
+  const start = performance.now();
+  const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
   function frame(now) {
-    const t = duration ? Math.min(1, (now - start) / duration) : 1,
-      e = 1 - (1 - t) ** 3;
+    const t = duration ? Math.min(1, (now - start) / duration) : 1;
+    const e = 1 - (1 - t) ** 3;
     current = from.map((p, i) => ({
-      mean: p.mean + (target[i].mean - p.mean) * e,
-      sd: p.sd + (target[i].sd - p.sd) * e,
+      median: p.median + (target[i].median - p.median) * e,
+      lower: p.lower + (target[i].lower - p.lower) * e,
+      upper: p.upper + (target[i].upper - p.upper) * e,
     }));
+    pulse.scale.setScalar(1 + t * 7);
+    pulseMaterial.opacity = forward && duration ? 0.7 * (1 - t) : 0;
     updateGeometry(current);
     render();
     if (t < 1) animation = requestAnimationFrame(frame);
@@ -492,6 +564,12 @@ function stopPlayback() {
 }
 evidence.addEventListener("input", () => {
   stopPlayback();
+  syncReplay();
+});
+nextButton.addEventListener("click", () => {
+  stopPlayback();
+  const next = scans[stageAt(scans, Number(evidence.value))];
+  if (next) evidence.value = Math.round(next.time * 60);
   syncReplay();
 });
 playButton.addEventListener("click", () => {
@@ -511,7 +589,7 @@ playButton.addEventListener("click", () => {
   function advance(now) {
     const minute = Math.min(
       endMinutes,
-      Math.floor(playFrom + ((now - playStarted) / 1000) * 18),
+      Math.floor(playFrom + ((now - playStarted) / 1000) * 12),
     );
     evidence.value = minute;
     syncReplay();
@@ -561,11 +639,8 @@ root
 function updateTheme() {
   readColors();
   drawMap();
-  medianMaterial.color.set(colors["viz-series-1"]);
-  bandMaterial.color.set(colors["viz-series-1"]);
-  traceMaterial.color.set(colors["viz-series-1"]);
   axisMaterial.color.set(colors.foreground);
-  observationMaterial.color.set(colors.foreground);
+  observationOutline.color.set(colors.foreground);
   render();
 }
 new MutationObserver(updateTheme).observe(document.documentElement, {

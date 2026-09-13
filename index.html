@@ -15,7 +15,7 @@
         <div class="terrain-head">
           <h1>Delivery probability terrain</h1>
           <span class="text-small text-muted"
-            >Oakland streets · illustrative field</span
+            >Oakland streets · 3 illustrative regions · 9 AM–5 PM</span
           >
         </div>
         <div class="evidence-head">
@@ -38,19 +38,21 @@
           >
             Play
           </button>
+          <button type="button" class="btn" id="terrain-next">Next delivery</button>
           <div class="replay-range">
             <input
               id="terrain-evidence"
               class="form-range"
               type="range"
-              min="0"
-              max="120"
+              min="540"
+              max="1020"
               step="1"
-              value="0"
+              value="540"
               aria-label="Replay time, move forward or backward through delivery observations"
             />
+            <div id="terrain-events" class="event-ticks" aria-hidden="true"></div>
             <div class="replay-endpoints text-small text-muted tabular-nums">
-              <span id="terrain-start"></span><span id="terrain-end"></span>
+              <span id="terrain-start">9 AM</span><span>1 PM</span><span id="terrain-end">5 PM</span>
             </div>
           </div>
         </div>
@@ -99,11 +101,15 @@
             </button>
           </div>
         </div>
-        <div class="terrain-key text-small">
-          <span><span class="legend-chip"></span>Median delivery time</span
-          ><span><span class="legend-chip band"></span>Central 80% band</span
-          ><span>Height = local time</span>
+        <div class="time-legend text-small" aria-label="Delivery time: blue at 9 AM, purple at 1 PM, red at 5 PM">
+          <span>Earlier · 9 AM</span><span class="time-gradient" aria-hidden="true"></span><span>5 PM · Later</span>
         </div>
+        <div class="terrain-key text-small">
+          <span>Height + color = delivery time</span>
+          <span>Surface = median · thickness = central 80% range</span>
+          <span><span class="legend-dot" aria-hidden="true"></span>Observed delivery</span>
+        </div>
+        <div id="terrain-regions" class="terrain-regions" aria-label="Uncertainty by region"></div>
         <div class="terrain-source text-small text-muted">
           Map data ©
           <a
@@ -112,7 +118,7 @@
             rel="noopener noreferrer"
             >OpenStreetMap contributors</a
           >
-          · Downtown detail
+          · Downtown detail · Synthetic deliveries; no routes assumed
         </div>
       </div>
     </main>
